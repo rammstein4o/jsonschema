@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$schema": "https://json-schema.org/draft-04/schema#",
   "$ref": "#/definitions/TestYamlInline",
   "definitions": {
     "Inner": {
@@ -18,7 +18,7 @@
       ],
       "properties": {
         "Inlined": {
-          "$schema": "http://json-schema.org/draft-04/schema#",
+          "$schema": "https://json-schema.org/draft-04/schema#",
           "$ref": "#/definitions/Inner"
         }
       },

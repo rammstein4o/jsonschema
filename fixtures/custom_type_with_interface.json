@@ -1,5 +1,5 @@
 {
-	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$schema": "https://json-schema.org/draft-04/schema#",
 	"$ref": "#/definitions/CustomTypeFieldWithInterface",
 	"definitions": {
 		"CustomTypeFieldWithInterface": {
@@ -8,7 +8,7 @@
 			],
 			"properties": {
 				"CreatedAt": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$schema": "https://json-schema.org/draft-04/schema#",
 					"$ref": "#/definitions/CustomTimeWithInterface"
 				}
 			},

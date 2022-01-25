@@ -1,5 +1,5 @@
 {
-	"$schema": "http://json-schema.org/draft-04/schema#",
+	"$schema": "https://json-schema.org/draft-04/schema#",
 	"$ref": "#/definitions/CustomMapOuter",
 	"definitions": {
 		"CustomMapOuter": {
@@ -10,7 +10,7 @@
 			"additionalProperties": false,
 			"properties": {
 				"my_map": {
-					"$schema": "http://json-schema.org/draft-04/schema#",
+					"$schema": "https://json-schema.org/draft-04/schema#",
 					"$ref": "#/definitions/CustomMapType"
 				}
 			}

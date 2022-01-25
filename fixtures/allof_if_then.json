@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft-04/schema#",
+  "$ref": "#/definitions/PostCodeValidator",
+  "definitions": {
+    "PostCodeValidator": {
+      "properties": {
+        "street_address": {
+          "type": "string"
+        },
+        "country": {
+          "enum": [
+            "USA",
+            "Canada",
+            "Netherlands"
+          ],
+          "type": "string",
+          "default": "USA"
+        }
+      },
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "country": {
+                "const": "USA"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "postal_code": {
+                "pattern": "[0-9]{5}(-[0-9]{4})?"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "country"
+            ],
+            "properties": {
+              "country": {
+                "const": "Canada"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "postal_code": {
+                "pattern": "[A-Z][0-9][A-Z] [0-9][A-Z][0-9]"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "country"
+            ],
+            "properties": {
+              "country": {
+                "const": "Netherlands"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "postal_code": {
+                "pattern": "[0-9]{4} [A-Z]{2}"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

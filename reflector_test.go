@@ -2,7 +2,6 @@ package jsonschema
 
 import (
 	"encoding/json"
-	"github.com/iancoleman/orderedmap"
 	"io/ioutil"
 	"net"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/iancoleman/orderedmap"
 
 	"github.com/stretchr/testify/require"
 )
@@ -106,8 +107,8 @@ type CustomTypeFieldWithInterface struct {
 	CreatedAt CustomTimeWithInterface
 }
 
-func (CustomTimeWithInterface) JSONSchemaType() *Type {
-	return &Type{
+func (CustomTimeWithInterface) JSONSchemaType() *TypeDraft04 {
+	return &TypeDraft04{
 		Type:   "string",
 		Format: "date-time",
 	}
@@ -161,8 +162,8 @@ type CompactDate struct {
 	Month int
 }
 
-func (CompactDate) JSONSchemaType() *Type {
-	return &Type{
+func (CompactDate) JSONSchemaType() *TypeDraft04 {
+	return &TypeDraft04{
 		Type:        "string",
 		Title:       "Compact Date",
 		Description: "Short date that only includes year and month",
@@ -198,13 +199,13 @@ type CustomSliceOuter struct {
 
 type CustomSliceType []string
 
-func (CustomSliceType) JSONSchemaType() *Type {
-	return &Type{
-		OneOf: []*Type{{
+func (CustomSliceType) JSONSchemaType() *TypeDraft04 {
+	return &TypeDraft04{
+		OneOf: []*TypeDraft04{{
 			Type: "string",
 		}, {
 			Type: "array",
-			Items: &Type{
+			Items: &TypeDraft04{
 				Type: "string",
 			},
 		}},
@@ -213,17 +214,17 @@ func (CustomSliceType) JSONSchemaType() *Type {
 
 type CustomMapType map[string]string
 
-func (CustomMapType) JSONSchemaType() *Type {
+func (CustomMapType) JSONSchemaType() *TypeDraft04 {
 	properties := orderedmap.New()
-	properties.Set("key", &Type{
+	properties.Set("key", &TypeDraft04{
 		Type: "string",
 	})
-	properties.Set("value", &Type{
+	properties.Set("value", &TypeDraft04{
 		Type: "string",
 	})
-	return &Type{
+	return &TypeDraft04{
 		Type: "array",
-		Items: &Type{
+		Items: &TypeDraft04{
 			Type:       "object",
 			Properties: properties,
 			Required:   []string{"key", "value"},
@@ -235,25 +236,81 @@ type CustomMapOuter struct {
 	MyMap CustomMapType `json:"my_map"`
 }
 
+type PostCodeValidator struct {
+	StreetAddress string `json:"street_address"`
+	Country       string `json:"country"`
+}
+
+func (PostCodeValidator) JSONSchemaType() *TypeDraft04 {
+
+	genCondition := func(country string, req bool) *TypeDraft04 {
+		properties := orderedmap.New()
+		properties.Set("country", &TypeDraft04{
+			Const: country,
+		})
+
+		cond := &TypeDraft04{
+			Properties: properties,
+		}
+
+		if req {
+			cond.Required = []string{"country"}
+		}
+
+		return cond
+	}
+
+	genPattern := func(pattern string) *TypeDraft04 {
+		properties := orderedmap.New()
+		properties.Set("postal_code", &TypeDraft04{
+			Pattern: pattern,
+		})
+
+		return &TypeDraft04{
+			Properties: properties,
+		}
+	}
+
+	properties := orderedmap.New()
+	properties.Set("street_address", &TypeDraft04{
+		Type: "string",
+	})
+	properties.Set("country", &TypeDraft04{
+		Type:    "string",
+		Default: "USA",
+		Enum:    []interface{}{"USA", "Canada", "Netherlands"},
+	})
+
+	return &TypeDraft04{
+		Type:       "object",
+		Properties: properties,
+		AllOf: []*TypeDraft04{
+			{If: genCondition("USA", false), Then: genPattern("[0-9]{5}(-[0-9]{4})?")},
+			{If: genCondition("Canada", true), Then: genPattern("[A-Z][0-9][A-Z] [0-9][A-Z][0-9]")},
+			{If: genCondition("Netherlands", true), Then: genPattern("[0-9]{4} [A-Z]{2}")},
+		},
+	}
+}
+
 func TestSchemaGeneration(t *testing.T) {
 	tests := []struct {
 		typ       interface{}
 		reflector *Reflector
 		fixture   string
 	}{
-		{&RootOneOf{}, &Reflector{RequiredFromJSONSchemaTags: true}, "fixtures/oneof.json"},
-		{&TestUser{}, &Reflector{}, "fixtures/defaults.json"},
-		{&TestUser{}, &Reflector{AllowAdditionalProperties: true}, "fixtures/allow_additional_props.json"},
-		{&TestUser{}, &Reflector{RequiredFromJSONSchemaTags: true}, "fixtures/required_from_jsontags.json"},
-		{&TestUser{}, &Reflector{ExpandedStruct: true}, "fixtures/defaults_expanded_toplevel.json"},
-		{&TestUser{}, &Reflector{IgnoredTypes: []interface{}{GrandfatherType{}}}, "fixtures/ignore_type.json"},
-		{&TestUser{}, &Reflector{DoNotReference: true}, "fixtures/no_reference.json"},
-		{&TestUser{}, &Reflector{FullyQualifyTypeNames: true}, "fixtures/fully_qualified.json"},
-		{&TestUser{}, &Reflector{DoNotReference: true, FullyQualifyTypeNames: true}, "fixtures/no_ref_qual_types.json"},
-		{&CustomTypeField{}, &Reflector{
-			TypeMapper: func(i reflect.Type) *Type {
+		{&RootOneOf{}, &Reflector{Version: DRAFT04, RequiredFromJSONSchemaTags: true}, "fixtures/oneof.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04}, "fixtures/defaults.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04, AllowAdditionalProperties: true}, "fixtures/allow_additional_props.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04, RequiredFromJSONSchemaTags: true}, "fixtures/required_from_jsontags.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04, ExpandedStruct: true}, "fixtures/defaults_expanded_toplevel.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04, IgnoredTypes: []interface{}{GrandfatherType{}}}, "fixtures/ignore_type.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04, DoNotReference: true}, "fixtures/no_reference.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04, FullyQualifyTypeNames: true}, "fixtures/fully_qualified.json"},
+		{&TestUser{}, &Reflector{Version: DRAFT04, DoNotReference: true, FullyQualifyTypeNames: true}, "fixtures/no_ref_qual_types.json"},
+		{&CustomTypeField{}, &Reflector{Version: DRAFT04,
+			TypeMapper: func(i reflect.Type) *TypeDraft04 {
 				if i == reflect.TypeOf(CustomTime{}) {
-					return &Type{
+					return &TypeDraft04{
 						Type:   "string",
 						Format: "date-time",
 					}
@@ -261,13 +318,13 @@ func TestSchemaGeneration(t *testing.T) {
 				return nil
 			},
 		}, "fixtures/custom_type.json"},
-		{&TestUser{}, &Reflector{DoNotReference: true, FullyQualifyTypeNames: true}, "fixtures/no_ref_qual_types.json"},
-		{&Outer{}, &Reflector{ExpandedStruct: true, DoNotReference: true, YAMLEmbeddedStructs: true}, "fixtures/disable_inlining_embedded.json"},
-		{&MinValue{}, &Reflector{}, "fixtures/schema_with_minimum.json"},
-		{&TestNullable{}, &Reflector{}, "fixtures/nullable.json"},
-		{&TestYamlInline{}, &Reflector{YAMLEmbeddedStructs: true}, "fixtures/yaml_inline_embed.json"},
-		{&TestYamlInline{}, &Reflector{}, "fixtures/yaml_inline_embed.json"},
-		{&GrandfatherType{}, &Reflector{
+		{&TestUser{}, &Reflector{Version: DRAFT04, DoNotReference: true, FullyQualifyTypeNames: true}, "fixtures/no_ref_qual_types.json"},
+		{&Outer{}, &Reflector{Version: DRAFT04, ExpandedStruct: true, DoNotReference: true, YAMLEmbeddedStructs: true}, "fixtures/disable_inlining_embedded.json"},
+		{&MinValue{}, &Reflector{Version: DRAFT04}, "fixtures/schema_with_minimum.json"},
+		{&TestNullable{}, &Reflector{Version: DRAFT04}, "fixtures/nullable.json"},
+		{&TestYamlInline{}, &Reflector{Version: DRAFT04, YAMLEmbeddedStructs: true}, "fixtures/yaml_inline_embed.json"},
+		{&TestYamlInline{}, &Reflector{Version: DRAFT04}, "fixtures/yaml_inline_embed.json"},
+		{&GrandfatherType{}, &Reflector{Version: DRAFT04,
 			AdditionalFields: func(r reflect.Type) []reflect.StructField {
 				return []reflect.StructField{
 					{
@@ -279,13 +336,14 @@ func TestSchemaGeneration(t *testing.T) {
 				}
 			},
 		}, "fixtures/custom_additional.json"},
-		{&TestYamlAndJson{}, &Reflector{PreferYAMLSchema: true}, "fixtures/test_yaml_and_json_prefer_yaml.json"},
-		{&TestYamlAndJson{}, &Reflector{}, "fixtures/test_yaml_and_json.json"},
-		// {&TestYamlAndJson2{}, &Reflector{}, "fixtures/test_yaml_and_json2.json"},
-		{&CompactDate{}, &Reflector{}, "fixtures/compact_date.json"},
-		{&CustomSliceOuter{}, &Reflector{}, "fixtures/custom_slice_type.json"},
-		{&CustomMapOuter{}, &Reflector{}, "fixtures/custom_map_type.json"},
-		{&CustomTypeFieldWithInterface{}, &Reflector{}, "fixtures/custom_type_with_interface.json"},
+		{&TestYamlAndJson{}, &Reflector{Version: DRAFT04, PreferYAMLSchema: true}, "fixtures/test_yaml_and_json_prefer_yaml.json"},
+		{&TestYamlAndJson{}, &Reflector{Version: DRAFT04}, "fixtures/test_yaml_and_json.json"},
+		// {&TestYamlAndJson2{}, &Reflector{Version: DRAFT04, }, "fixtures/test_yaml_and_json2.json"},
+		{&CompactDate{}, &Reflector{Version: DRAFT04}, "fixtures/compact_date.json"},
+		{&CustomSliceOuter{}, &Reflector{Version: DRAFT04}, "fixtures/custom_slice_type.json"},
+		{&CustomMapOuter{}, &Reflector{Version: DRAFT04}, "fixtures/custom_map_type.json"},
+		{&CustomTypeFieldWithInterface{}, &Reflector{Version: DRAFT04}, "fixtures/custom_type_with_interface.json"},
+		{&PostCodeValidator{}, &Reflector{Version: DRAFT04}, "fixtures/allof_if_then.json"},
 	}
 
 	for _, tt := range tests {
@@ -302,7 +360,7 @@ func TestSchemaGeneration(t *testing.T) {
 
 			expectedJSON, _ := json.MarshalIndent(expectedSchema, "", "  ")
 			actualJSON, _ := json.MarshalIndent(actualSchema, "", "  ")
-			require.Equal(t, string(expectedJSON), string(actualJSON))
+			require.JSONEq(t, string(expectedJSON), string(actualJSON))
 		})
 	}
 }
@@ -311,7 +369,7 @@ func TestBaselineUnmarshal(t *testing.T) {
 	expectedJSON, err := ioutil.ReadFile("fixtures/defaults.json")
 	require.NoError(t, err)
 
-	reflector := &Reflector{}
+	reflector := &Reflector{Version: DRAFT04}
 	actualSchema := reflector.Reflect(&TestUser{})
 
 	actualJSON, _ := json.MarshalIndent(actualSchema, "", "  ")
