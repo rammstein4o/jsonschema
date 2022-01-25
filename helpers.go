@@ -8,16 +8,13 @@ import (
 	"time"
 )
 
-// Version is the JSON Schema version.
-// If extending JSON Schema with custom values use a custom URI.
-// RFC draft-wright-json-schema-00, section 6
-// var Version = "http://json-schema.org/draft-04/schema#"
+type Schema interface{}
 
 // customSchemaType is used to detect if the type provides it's own
 // custom Schema Type definition to use instead. Very useful for situations
 // where there are custom JSON Marshal and Unmarshal methods.
 type customSchemaType interface {
-	JSONSchemaType() *TypeDraft04
+	JSONSchemaType() Schema
 }
 
 var customType = reflect.TypeOf((*customSchemaType)(nil)).Elem()
@@ -34,7 +31,7 @@ var customStructGetFieldDocString = reflect.TypeOf((*customSchemaGetFieldDocStri
 // Definitions hold schema definitions.
 // http://json-schema.org/latest/json-schema-validation.html#rfc.section.5.26
 // RFC draft-wright-json-schema-validation-00, section 5.26
-type Definitions map[string]*TypeDraft04
+type Definitions map[string]Schema
 
 // Available Go defined types for JSON Schema Validation.
 // RFC draft-wright-json-schema-validation-00, section 7.3

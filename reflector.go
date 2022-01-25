@@ -5,17 +5,23 @@ import (
 	"strings"
 
 	"github.com/iancoleman/orderedmap"
+	"github.com/rammstein4o/jsonschema/draft07"
 )
 
 // Reflect reflects to Schema from a value using the default Reflector
-func Reflect(v interface{}) *Schema {
-	return ReflectFromType(reflect.TypeOf(v))
+func Reflect(input interface{}) Schema {
+	return ReflectFromType(reflect.TypeOf(input), DRAFT04)
+}
+
+// ReflectToVersion reflects to Schema from a value using the default Reflector
+func ReflectToVersion(input interface{}, version Version) Schema {
+	return ReflectFromType(reflect.TypeOf(input), version)
 }
 
 // ReflectFromType generates root schema using the default Reflector
-func ReflectFromType(t reflect.Type) *Schema {
+func ReflectFromType(t reflect.Type, version Version) Schema {
 	r := &Reflector{
-		Version: DRAFT04,
+		Version: version,
 	}
 	return r.ReflectFromType(t)
 }
@@ -69,7 +75,7 @@ type Reflector struct {
 	IgnoredTypes []interface{}
 
 	// TypeMapper is a function that can be used to map custom Go types to jsonschema types.
-	TypeMapper func(reflect.Type) *TypeDraft04
+	TypeMapper func(reflect.Type) *draft07.Schema
 
 	// TypeNamer allows customizing of type names
 	TypeNamer func(reflect.Type) string
@@ -79,16 +85,16 @@ type Reflector struct {
 }
 
 // Reflect reflects to Schema from a value.
-func (r *Reflector) Reflect(v interface{}) *Schema {
+func (r *Reflector) Reflect(v interface{}) Schema {
 	return r.ReflectFromType(reflect.TypeOf(v))
 }
 
 // ReflectFromType generates root schema
-func (r *Reflector) ReflectFromType(t reflect.Type) *Schema {
+func (r *Reflector) ReflectFromType(t reflect.Type) Schema {
 	definitions := Definitions{}
 	if r.ExpandedStruct {
-		st := &TypeDraft04{
-			Version:              r.Version,
+		st := &draft07.Schema{
+			Schema:               r.Version,
 			Type:                 "object",
 			Properties:           orderedmap.New(),
 			AdditionalProperties: []byte("false"),
@@ -99,20 +105,20 @@ func (r *Reflector) ReflectFromType(t reflect.Type) *Schema {
 		r.reflectStructFields(st, definitions, t)
 		r.reflectStruct(definitions, t)
 		delete(definitions, r.typeName(t))
-		return &Schema{TypeDraft04: st, Definitions: definitions}
+		st.Definitions = definitions
+		return st
 	}
 
-	s := &Schema{
-		TypeDraft04: r.reflectTypeToSchema(definitions, t),
-		Definitions: definitions,
-	}
-	return s
+	st := r.reflectTypeToSchema(definitions, t)
+	st.Definitions = definitions
+
+	return st
 }
 
-func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type) *TypeDraft04 {
+func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type) Schema {
 	// Already added to definitions?
 	if _, ok := definitions[r.typeName(t)]; ok && !r.DoNotReference {
-		return &TypeDraft04{Ref: "#/definitions/" + r.typeName(t)}
+		return &draft07.Schema{Ref: "#/definitions/" + r.typeName(t)}
 	}
 
 	if r.TypeMapper != nil {
@@ -128,7 +134,7 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 	// jsonpb will marshal protobuf enum options as either strings or integers.
 	// It will unmarshal either.
 	if t.Implements(protoEnumType) {
-		return &TypeDraft04{OneOf: []*TypeDraft04{
+		return &draft07.Schema{OneOf: []*draft07.Schema{
 			{Type: "string"},
 			{Type: "integer"},
 		}}
@@ -139,16 +145,16 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 	// TODO email RFC section 7.3.2, hostname RFC section 7.3.3, uriref RFC section 7.3.7
 	if t == ipType {
 		// TODO differentiate ipv4 and ipv6 RFC section 7.3.4, 7.3.5
-		return &TypeDraft04{Type: "string", Format: "ipv4"} // ipv4 RFC section 7.3.4
+		return &draft07.Schema{Type: "string", Format: "ipv4"} // ipv4 RFC section 7.3.4
 	}
 
 	switch t.Kind() {
 	case reflect.Struct:
 		switch t {
 		case timeType: // date-time RFC section 7.3.1
-			return &TypeDraft04{Type: "string", Format: "date-time"}
+			return &draft07.Schema{Type: "string", Format: "date-time"}
 		case uriType: // uri RFC section 7.3.6
-			return &TypeDraft04{Type: "string", Format: "uri"}
+			return &draft07.Schema{Type: "string", Format: "uri"}
 		default:
 			return r.reflectStruct(definitions, t)
 		}
@@ -156,9 +162,9 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 	case reflect.Map:
 		switch t.Key().Kind() {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			rt := &TypeDraft04{
+			rt := &draft07.Schema{
 				Type: "object",
-				PatternProperties: map[string]*TypeDraft04{
+				PatternProperties: map[string]*draft07.Schema{
 					"^[0-9]+$": r.reflectTypeToSchema(definitions, t.Elem()),
 				},
 				AdditionalProperties: []byte("false"),
@@ -166,9 +172,9 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 			return rt
 		}
 
-		rt := &TypeDraft04{
+		rt := &draft07.Schema{
 			Type: "object",
-			PatternProperties: map[string]*TypeDraft04{
+			PatternProperties: map[string]*draft07.Schema{
 				".*": r.reflectTypeToSchema(definitions, t.Elem()),
 			},
 		}
@@ -176,19 +182,19 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 		return rt
 
 	case reflect.Slice, reflect.Array:
-		returnType := &TypeDraft04{}
+		returnType := &draft07.Schema{}
 		if t == rawMessageType {
-			return &TypeDraft04{
+			return &draft07.Schema{
 				AdditionalProperties: []byte("true"),
 			}
 		}
 		if t.Kind() == reflect.Array {
-			returnType.MinItems = t.Len()
+			returnType.MinItems = uint64(t.Len())
 			returnType.MaxItems = returnType.MinItems
 		}
 		if t.Kind() == reflect.Slice && t.Elem() == byteSliceType.Elem() {
 			returnType.Type = "string"
-			returnType.Media = &TypeDraft04{BinaryEncoding: "base64"}
+			returnType.ContentEncoding = "base64"
 			return returnType
 		}
 		returnType.Type = "array"
@@ -196,22 +202,22 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 		return returnType
 
 	case reflect.Interface:
-		return &TypeDraft04{
+		return &draft07.Schema{
 			AdditionalProperties: []byte("true"),
 		}
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return &TypeDraft04{Type: "integer"}
+		return &draft07.Schema{Type: "integer"}
 
 	case reflect.Float32, reflect.Float64:
-		return &TypeDraft04{Type: "number"}
+		return &draft07.Schema{Type: "number"}
 
 	case reflect.Bool:
-		return &TypeDraft04{Type: "boolean"}
+		return &draft07.Schema{Type: "boolean"}
 
 	case reflect.String:
-		return &TypeDraft04{Type: "string"}
+		return &draft07.Schema{Type: "string"}
 
 	case reflect.Ptr:
 		return r.reflectTypeToSchema(definitions, t.Elem())
@@ -219,7 +225,7 @@ func (r *Reflector) reflectTypeToSchema(definitions Definitions, t reflect.Type)
 	panic("unsupported type " + t.String())
 }
 
-func (r *Reflector) reflectCustomType(definitions Definitions, t reflect.Type) *TypeDraft04 {
+func (r *Reflector) reflectCustomType(definitions Definitions, t reflect.Type) Schema {
 	if t.Kind() == reflect.Ptr {
 		return r.reflectCustomType(definitions, t.Elem())
 	}
@@ -232,9 +238,9 @@ func (r *Reflector) reflectCustomType(definitions Definitions, t reflect.Type) *
 		if r.DoNotReference {
 			return st
 		} else {
-			return &TypeDraft04{
-				Version: r.Version,
-				Ref:     "#/definitions/" + r.typeName(t),
+			return &draft07.Schema{
+				Schema: r.Version,
+				Ref:    "#/definitions/" + r.typeName(t),
 			}
 		}
 	}
@@ -243,14 +249,14 @@ func (r *Reflector) reflectCustomType(definitions Definitions, t reflect.Type) *
 }
 
 // Reflects a struct to a JSON Schema type.
-func (r *Reflector) reflectStruct(definitions Definitions, t reflect.Type) *TypeDraft04 {
+func (r *Reflector) reflectStruct(definitions Definitions, t reflect.Type) Schema {
 	if st := r.reflectCustomType(definitions, t); st != nil {
 		return st
 	}
 
 	for _, ignored := range r.IgnoredTypes {
 		if reflect.TypeOf(ignored) == t {
-			st := &TypeDraft04{
+			st := &draft07.Schema{
 				Type:                 "object",
 				Properties:           orderedmap.New(),
 				AdditionalProperties: []byte("true"),
@@ -260,15 +266,15 @@ func (r *Reflector) reflectStruct(definitions Definitions, t reflect.Type) *Type
 			if r.DoNotReference {
 				return st
 			} else {
-				return &TypeDraft04{
-					Version: r.Version,
-					Ref:     "#/definitions/" + r.typeName(t),
+				return &draft07.Schema{
+					Schema: r.Version,
+					Ref:    "#/definitions/" + r.typeName(t),
 				}
 			}
 		}
 	}
 
-	st := &TypeDraft04{
+	st := &draft07.Schema{
 		Type:                 "object",
 		Properties:           orderedmap.New(),
 		AdditionalProperties: []byte("false"),
@@ -282,14 +288,14 @@ func (r *Reflector) reflectStruct(definitions Definitions, t reflect.Type) *Type
 	if r.DoNotReference {
 		return st
 	} else {
-		return &TypeDraft04{
-			Version: r.Version,
-			Ref:     "#/definitions/" + r.typeName(t),
+		return &draft07.Schema{
+			Schema: r.Version,
+			Ref:    "#/definitions/" + r.typeName(t),
 		}
 	}
 }
 
-func (r *Reflector) reflectStructFields(st *TypeDraft04, definitions Definitions, t reflect.Type) {
+func (r *Reflector) reflectStructFields(st *draft07.Schema, definitions Definitions, t reflect.Type) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -322,8 +328,8 @@ func (r *Reflector) reflectStructFields(st *TypeDraft04, definitions Definitions
 		}
 
 		if nullable {
-			property = &TypeDraft04{
-				OneOf: []*TypeDraft04{
+			property = &draft07.Schema{
+				OneOf: []*draft07.Schema{
 					property,
 					{
 						Type: "null",

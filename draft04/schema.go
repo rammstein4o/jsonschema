@@ -1,4 +1,4 @@
-package jsonschema
+package draft04
 
 import (
 	"encoding/json"
@@ -7,41 +7,42 @@ import (
 	"strings"
 
 	"github.com/iancoleman/orderedmap"
+	"github.com/rammstein4o/jsonschema"
 )
 
 // Type represents a JSON Schema object type.
-type TypeDraft04 struct {
+type Schema struct {
 	// RFC draft-wright-json-schema-00
-	Version Version `json:"$schema,omitempty"` // section 6.1
-	Ref     string  `json:"$ref,omitempty"`    // section 7
+	Version jsonschema.Version `json:"$schema,omitempty"` // section 6.1
+	Ref     string             `json:"$ref,omitempty"`    // section 7
 	// RFC draft-wright-json-schema-validation-00, section 5
-	MultipleOf           int                     `json:"multipleOf,omitempty"`           // section 5.1
-	Maximum              int                     `json:"maximum,omitempty"`              // section 5.2
-	ExclusiveMaximum     bool                    `json:"exclusiveMaximum,omitempty"`     // section 5.3
-	Minimum              int                     `json:"minimum,omitempty"`              // section 5.4
-	ExclusiveMinimum     bool                    `json:"exclusiveMinimum,omitempty"`     // section 5.5
-	MaxLength            int                     `json:"maxLength,omitempty"`            // section 5.6
-	MinLength            int                     `json:"minLength,omitempty"`            // section 5.7
-	Pattern              string                  `json:"pattern,omitempty"`              // section 5.8
-	AdditionalItems      *TypeDraft04            `json:"additionalItems,omitempty"`      // section 5.9
-	Items                *TypeDraft04            `json:"items,omitempty"`                // section 5.9
-	MaxItems             int                     `json:"maxItems,omitempty"`             // section 5.10
-	MinItems             int                     `json:"minItems,omitempty"`             // section 5.11
-	UniqueItems          bool                    `json:"uniqueItems,omitempty"`          // section 5.12
-	MaxProperties        int                     `json:"maxProperties,omitempty"`        // section 5.13
-	MinProperties        int                     `json:"minProperties,omitempty"`        // section 5.14
-	Required             []string                `json:"required,omitempty"`             // section 5.15
-	Properties           *orderedmap.OrderedMap  `json:"properties,omitempty"`           // section 5.16
-	PatternProperties    map[string]*TypeDraft04 `json:"patternProperties,omitempty"`    // section 5.17
-	AdditionalProperties json.RawMessage         `json:"additionalProperties,omitempty"` // section 5.18
-	Dependencies         map[string]*TypeDraft04 `json:"dependencies,omitempty"`         // section 5.19
-	Enum                 []interface{}           `json:"enum,omitempty"`                 // section 5.20
-	Type                 string                  `json:"type,omitempty"`                 // section 5.21
-	AllOf                []*TypeDraft04          `json:"allOf,omitempty"`                // section 5.22
-	AnyOf                []*TypeDraft04          `json:"anyOf,omitempty"`                // section 5.23
-	OneOf                []*TypeDraft04          `json:"oneOf,omitempty"`                // section 5.24
-	Not                  *TypeDraft04            `json:"not,omitempty"`                  // section 5.25
-	Definitions          Definitions             `json:"definitions,omitempty"`          // section 5.26
+	MultipleOf           int                    `json:"multipleOf,omitempty"`           // section 5.1
+	Maximum              int                    `json:"maximum,omitempty"`              // section 5.2
+	ExclusiveMaximum     bool                   `json:"exclusiveMaximum,omitempty"`     // section 5.3
+	Minimum              int                    `json:"minimum,omitempty"`              // section 5.4
+	ExclusiveMinimum     bool                   `json:"exclusiveMinimum,omitempty"`     // section 5.5
+	MaxLength            int                    `json:"maxLength,omitempty"`            // section 5.6
+	MinLength            int                    `json:"minLength,omitempty"`            // section 5.7
+	Pattern              string                 `json:"pattern,omitempty"`              // section 5.8
+	AdditionalItems      *Schema                `json:"additionalItems,omitempty"`      // section 5.9
+	Items                *Schema                `json:"items,omitempty"`                // section 5.9
+	MaxItems             int                    `json:"maxItems,omitempty"`             // section 5.10
+	MinItems             int                    `json:"minItems,omitempty"`             // section 5.11
+	UniqueItems          bool                   `json:"uniqueItems,omitempty"`          // section 5.12
+	MaxProperties        int                    `json:"maxProperties,omitempty"`        // section 5.13
+	MinProperties        int                    `json:"minProperties,omitempty"`        // section 5.14
+	Required             []string               `json:"required,omitempty"`             // section 5.15
+	Properties           *orderedmap.OrderedMap `json:"properties,omitempty"`           // section 5.16
+	PatternProperties    map[string]*Schema     `json:"patternProperties,omitempty"`    // section 5.17
+	AdditionalProperties json.RawMessage        `json:"additionalProperties,omitempty"` // section 5.18
+	Dependencies         map[string]*Schema     `json:"dependencies,omitempty"`         // section 5.19
+	Enum                 []interface{}          `json:"enum,omitempty"`                 // section 5.20
+	Type                 string                 `json:"type,omitempty"`                 // section 5.21
+	AllOf                []*Schema              `json:"allOf,omitempty"`                // section 5.22
+	AnyOf                []*Schema              `json:"anyOf,omitempty"`                // section 5.23
+	OneOf                []*Schema              `json:"oneOf,omitempty"`                // section 5.24
+	Not                  *Schema                `json:"not,omitempty"`                  // section 5.25
+	Definitions          jsonschema.Definitions `json:"definitions,omitempty"`          // section 5.26
 	// RFC draft-wright-json-schema-validation-00, section 6, 7
 	Title       string        `json:"title,omitempty"`       // section 6.1
 	Description string        `json:"description,omitempty"` // section 6.1
@@ -49,20 +50,20 @@ type TypeDraft04 struct {
 	Format      string        `json:"format,omitempty"`      // section 7
 	Examples    []interface{} `json:"examples,omitempty"`    // section 7.4
 	// RFC draft-wright-json-schema-hyperschema-00, section 4
-	Media          *TypeDraft04 `json:"media,omitempty"`          // section 4.3
-	BinaryEncoding string       `json:"binaryEncoding,omitempty"` // section 4.3
+	Media          *Schema `json:"media,omitempty"`          // section 4.3
+	BinaryEncoding string  `json:"binaryEncoding,omitempty"` // section 4.3
 
-	If    *TypeDraft04 `json:"if,omitempty"`    // section 5.9
-	Then  *TypeDraft04 `json:"then,omitempty"`  // section 5.9
-	Else  *TypeDraft04 `json:"else,omitempty"`  // section 5.9
-	Const interface{}  `json:"const,omitempty"` // section 5.9
+	If    *Schema     `json:"if,omitempty"`    // section 5.9
+	Then  *Schema     `json:"then,omitempty"`  // section 5.9
+	Else  *Schema     `json:"else,omitempty"`  // section 5.9
+	Const interface{} `json:"const,omitempty"` // section 5.9
 
 	Extras map[string]interface{} `json:"-"`
 }
 
-func (t *TypeDraft04) MarshalJSON() ([]byte, error) {
-	type TypeDraft04_ TypeDraft04
-	b, err := json.Marshal((*TypeDraft04_)(t))
+func (t *Schema) MarshalJSON() ([]byte, error) {
+	type Schema_ Schema
+	b, err := json.Marshal((*Schema_)(t))
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +83,7 @@ func (t *TypeDraft04) MarshalJSON() ([]byte, error) {
 }
 
 // read struct tags for array type keyworks
-func (t *TypeDraft04) arrayKeywords(tags []string) {
+func (t *Schema) arrayKeywords(tags []string) {
 	var defaultValues []interface{}
 	for _, tag := range tags {
 		nameValue := strings.Split(tag, "=")
@@ -118,7 +119,7 @@ func (t *TypeDraft04) arrayKeywords(tags []string) {
 	}
 }
 
-func (t *TypeDraft04) extraKeywords(tags []string) {
+func (t *Schema) extraKeywords(tags []string) {
 	for _, tag := range tags {
 		nameValue := strings.Split(tag, "=")
 		if len(nameValue) == 2 {
@@ -127,7 +128,7 @@ func (t *TypeDraft04) extraKeywords(tags []string) {
 	}
 }
 
-func (t *TypeDraft04) setExtra(key, val string) {
+func (t *Schema) setExtra(key, val string) {
 	if t.Extras == nil {
 		t.Extras = map[string]interface{}{}
 	}
@@ -150,7 +151,7 @@ func (t *TypeDraft04) setExtra(key, val string) {
 	}
 }
 
-func (t *TypeDraft04) structKeywordsFromTags(f reflect.StructField, parentType *TypeDraft04, propertyName string) {
+func (t *Schema) structKeywordsFromTags(f reflect.StructField, parentType *Schema, propertyName string) {
 	t.Description = f.Tag.Get("jsonschema_description")
 	tags := strings.Split(f.Tag.Get("jsonschema"), ",")
 	t.genericKeywords(tags, parentType, propertyName)
@@ -169,7 +170,7 @@ func (t *TypeDraft04) structKeywordsFromTags(f reflect.StructField, parentType *
 }
 
 // read struct tags for generic keyworks
-func (t *TypeDraft04) genericKeywords(tags []string, parentType *TypeDraft04, propertyName string) {
+func (t *Schema) genericKeywords(tags []string, parentType *Schema, propertyName string) {
 	for _, tag := range tags {
 		nameValue := strings.Split(tag, "=")
 		if len(nameValue) == 2 {
@@ -182,14 +183,14 @@ func (t *TypeDraft04) genericKeywords(tags []string, parentType *TypeDraft04, pr
 			case "type":
 				t.Type = val
 			case "oneof_required":
-				var typeFound *TypeDraft04
+				var typeFound *Schema
 				for i := range parentType.OneOf {
 					if parentType.OneOf[i].Title == nameValue[1] {
 						typeFound = parentType.OneOf[i]
 					}
 				}
 				if typeFound == nil {
-					typeFound = &TypeDraft04{
+					typeFound = &Schema{
 						Title:    nameValue[1],
 						Required: []string{},
 					}
@@ -198,12 +199,12 @@ func (t *TypeDraft04) genericKeywords(tags []string, parentType *TypeDraft04, pr
 				typeFound.Required = append(typeFound.Required, propertyName)
 			case "oneof_type":
 				if t.OneOf == nil {
-					t.OneOf = make([]*TypeDraft04, 0, 1)
+					t.OneOf = make([]*Schema, 0, 1)
 				}
 				t.Type = ""
 				types := strings.Split(nameValue[1], ";")
 				for _, ty := range types {
-					t.OneOf = append(t.OneOf, &TypeDraft04{
+					t.OneOf = append(t.OneOf, &Schema{
 						Type: ty,
 					})
 				}
@@ -224,7 +225,7 @@ func (t *TypeDraft04) genericKeywords(tags []string, parentType *TypeDraft04, pr
 }
 
 // read struct tags for string type keyworks
-func (t *TypeDraft04) stringKeywords(tags []string) {
+func (t *Schema) stringKeywords(tags []string) {
 	for _, tag := range tags {
 		nameValue := strings.Split(tag, "=")
 		if len(nameValue) == 2 {
@@ -253,7 +254,7 @@ func (t *TypeDraft04) stringKeywords(tags []string) {
 }
 
 // read struct tags for numberic type keyworks
-func (t *TypeDraft04) numbericKeywords(tags []string) {
+func (t *Schema) numbericKeywords(tags []string) {
 	for _, tag := range tags {
 		nameValue := strings.Split(tag, "=")
 		if len(nameValue) == 2 {
